@@ -7,4 +7,4 @@ def linear(array, target):
             return i
     return -1
 
-print(linear(array, target))
+print(linear(array, target)) 
