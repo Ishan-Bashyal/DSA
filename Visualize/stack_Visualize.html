@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stack Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --border2: #333;
+    --text: #e8e8e8;
+    --muted: #666;
+    --push: #4ade80;
+    --push-dim: #1a3d26;
+    --pop: #f87171;
+    --pop-dim: #3d1a1a;
+    --peek: #60a5fa;
+    --peek-dim: #1a2a3d;
+    --accent: #a78bfa;
+  }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 36px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .layout {
+    display: flex;
+    gap: 28px;
+    width: 100%;
+    max-width: 820px;
+    align-items: flex-start;
+  }
+
+  /* STACK VIS */
+  .stack-panel {
+    flex: 0 0 200px;
+  }
+
+  .stack-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .stack-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 6px;
+    position: relative;
+  }
+
+  .stack-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .stack-item {
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    animation: slideIn 0.25s ease;
+    transition: all 0.2s;
+  }
+
+  .stack-item.is-top {
+    background: var(--push-dim);
+    border-color: var(--push);
+    color: var(--push);
+  }
+
+  .stack-item .idx {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .stack-item.is-top .idx { color: #4ade8088; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes popOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.9) translateY(-8px); }
+  }
+
+  .popping { animation: popOut 0.2s ease forwards; }
+
+  /* CONTROLS */
+  .controls {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  input[type=text], input[type=number] {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type=text] { flex: 1; }
+  input[type=number] { width: 70px; }
+
+  input:focus { border-color: var(--accent); }
+
+  button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  button:active { transform: scale(0.97); }
+
+  .btn-push { background: var(--push-dim); border-color: var(--push); color: var(--push); }
+  .btn-pop  { background: var(--pop-dim);  border-color: var(--pop);  color: var(--pop); }
+  .btn-peek { background: var(--peek-dim); border-color: var(--peek); color: var(--peek); }
+  .btn-clear { background: transparent; border-color: var(--border2); color: var(--muted); }
+
+  button:hover { filter: brightness(1.2); }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* STATS */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 4px;
+  }
+
+  .stat-val {
+    font-size: 22px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+  }
+
+  /* CAPACITY BAR */
+  .cap-bar-wrap {
+    margin-top: 12px;
+  }
+
+  .cap-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .cap-bar-bg {
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+  }
+
+  .cap-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--push);
+    transition: width 0.3s ease, background 0.3s;
+  }
+
+  /* LOG */
+  .log-box {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    max-height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .log-box::-webkit-scrollbar { width: 4px; }
+  .log-box::-webkit-scrollbar-track { background: transparent; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .log-entry {
+    animation: fadeIn 0.2s ease;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .log-entry.push { color: var(--push); }
+  .log-entry.pop  { color: var(--pop); }
+  .log-entry.peek { color: var(--peek); }
+  .log-entry.err  { color: #fb923c; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .peek-highlight { box-shadow: 0 0 0 2px var(--peek); }
+</style>
+</head>
+<body>
+
+<h1>// STACK</h1>
+<p class="subtitle">push · pop · peek — visualized</p>
+
+<div class="layout">
+
+  <!-- LEFT: Stack visualization -->
+  <div class="stack-panel">
+    <div class="stack-label">
+      <span>visual</span>
+      <span id="top-label">top ↑</span>
+    </div>
+    <div class="stack-box" id="stack-vis">
+      <div class="stack-empty" id="empty-msg">[ empty ]</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Controls -->
+  <div class="controls">
+
+    <!-- Push -->
+    <div class="card">
+      <div class="card-title">operations</div>
+      <div class="input-row">
+        <input type="text" id="push-input" placeholder="value to push..." />
+        <button class="btn-push" onclick="doPush()">↑ push</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-pop"   onclick="doPop()">↓ pop</button>
+        <button class="btn-peek"  onclick="doPeek()">◎ peek</button>
+        <button class="btn-clear" onclick="doClear()">✕ clear</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="card-title">info</div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">size</div>
+          <div class="stat-val" id="stat-size">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">capacity</div>
+          <div class="stat-val">
+            <input type="number" id="cap-input" value="5" min="1" max="20"
+              style="width:60px;font-size:20px;border:none;background:transparent;color:var(--text);text-align:center;padding:0;"
+              onchange="changeCap()" />
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">top</div>
+          <div class="stat-val" id="stat-top" style="font-size:16px;">—</div>
+        </div>
+      </div>
+      <div class="cap-bar-wrap">
+        <div class="cap-bar-label">
+          <span>fill level</span>
+          <span id="fill-label">0 / 5</span>
+        </div>
+        <div class="cap-bar-bg">
+          <div class="cap-bar-fill" id="cap-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <div class="card-title">log</div>
+      <div class="log-box" id="log">
+        <div class="log-entry">— ready —</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let stack = [];
+  let capacity = 5;
+
+  function render() {
+    const vis = document.getElementById('stack-vis');
+    const emptyMsg = document.getElementById('empty-msg');
+
+    // remove all items (keep empty-msg)
+    [...vis.querySelectorAll('.stack-item')].forEach(el => el.remove());
+    emptyMsg.style.display = stack.length === 0 ? 'flex' : 'none';
+
+    stack.forEach((val, i) => {
+      const el = document.createElement('div');
+      el.className = 'stack-item' + (i === stack.length - 1 ? ' is-top' : '');
+      el.dataset.index = i;
+      el.innerHTML = `<span>${val}</span><span class="idx">[${i}]</span>`;
+      vis.appendChild(el);
+    });
+
+    // stats
+    document.getElementById('stat-size').textContent = stack.length;
+    document.getElementById('stat-top').textContent = stack.length ? stack[stack.length - 1] : '—';
+
+    const pct = capacity > 0 ? (stack.length / capacity) * 100 : 0;
+    const bar = document.getElementById('cap-bar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--pop)' : pct >= 80 ? '#fb923c' : 'var(--push)';
+    document.getElementById('fill-label').textContent = `${stack.length} / ${capacity}`;
+  }
+
+  function log(msg, type) {
+    const logEl = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + (type || '');
+    const time = new Date().toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    entry.textContent = `[${time}] ${msg}`;
+    logEl.insertBefore(entry, logEl.firstChild);
+    while (logEl.children.length > 30) logEl.removeChild(logEl.lastChild);
+  }
+
+  function doPush() {
+    const inp = document.getElementById('push-input');
+    const val = inp.value.trim();
+    if (!val) { log('✗ enter a value first', 'err'); return; }
+    if (stack.length >= capacity) { log(`✗ overflow — stack full (${capacity})`, 'err'); return; }
+    stack.push(val);
+    log(`↑ pushed: ${val}`, 'push');
+    inp.value = '';
+    inp.focus();
+    render();
+  }
+
+  function doPop() {
+    if (stack.length === 0) { log('✗ underflow — stack is empty', 'err'); return; }
+    // animate top item out
+    const vis = document.getElementById('stack-vis');
+    const topEl = vis.querySelector('.stack-item.is-top');
+    if (topEl) {
+      topEl.classList.add('popping');
+      setTimeout(() => {
+        const val = stack.pop();
+        log(`↓ popped: ${val}`, 'pop');
+        render();
+      }, 180);
+    } else {
+      const val = stack.pop();
+      log(`↓ popped: ${val}`, 'pop');
+      render();
+    }
+  }
+
+  function doPeek() {
+    if (stack.length === 0) { log('✗ stack is empty', 'err'); return; }
+    const val = stack[stack.length - 1];
+    log(`◎ peek — top is: ${val}`, 'peek');
+    const vis = document.getElementById('stack-vis');
+    const topEl = vis.querySelector('.stack-item.is-top');
+    if (topEl) {
+      topEl.classList.add('peek-highlight');
+      setTimeout(() => topEl.classList.remove('peek-highlight'), 700);
+    }
+  }
+
+  function doClear() {
+    if (stack.length === 0) { log('— already empty', ''); return; }
+    stack = [];
+    log('✕ stack cleared', '');
+    render();
+  }
+
+  function changeCap() {
+    const val = parseInt(document.getElementById('cap-input').value);
+    if (isNaN(val) || val < 1) return;
+    capacity = val;
+    if (stack.length > capacity) {
+      stack = stack.slice(0, capacity);
+      log(`— trimmed to capacity ${capacity}`, '');
+    }
+    log(`— capacity changed to ${capacity}`, '');
+    render();
+  }
+
+  document.getElementById('push-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doPush();
+  });
+
+  render();
+</script>
+</body>
+</html>
