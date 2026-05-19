@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Queue Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f5f0e8;
+  --surface:#fffef9;
+  --surface2:#eee9de;
+  --border:#c8c0b0;
+  --border2:#b0a898;
+  --text:#1a1612;
+  --muted:#8a8070;
+  --enq:#2d6a4f;
+  --enq-bg:#d8f3dc;
+  --deq:#c1440e;
+  --deq-bg:#fde8dc;
+  --peek:#1a4f8c;
+  --peek-bg:#dceeff;
+  --pri:#6b3fa0;
+  --pri-bg:#ede0ff;
+  --accent:#c1440e;
+  --tag-bg:#1a1612;
+  --tag-text:#f5f0e8;
+}
+body{
+  font-family:'Syne',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  padding:32px 20px 60px;
+}
+/* HEADER */
+.header{
+  max-width:900px;
+  margin:0 auto 32px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  border-bottom:2px solid var(--text);
+  padding-bottom:12px;
+}
+.header h1{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:28px;
+  font-weight:600;
+  letter-spacing:-1px;
+}
+.header h1 span{color:var(--accent);}
+.header p{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+
+/* TABS */
+.tabs{
+  max-width:900px;
+  margin:0 auto 24px;
+  display:flex;
+  gap:0;
+  border:2px solid var(--text);
+  border-radius:0;
+  overflow:hidden;
+}
+.tab-btn{
+  flex:1;
+  padding:10px 8px;
+  background:var(--surface2);
+  border:none;
+  border-right:1px solid var(--text);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  font-weight:600;
+  color:var(--muted);
+  cursor:pointer;
+  transition:all 0.15s;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+.tab-btn:last-child{border-right:none;}
+.tab-btn:hover{background:var(--surface);color:var(--text);}
+.tab-btn.active{background:var(--tag-bg);color:var(--tag-text);}
+
+/* PANELS */
+.panel{display:none;max-width:900px;margin:0 auto;}
+.panel.active{display:block;}
+
+/* DESCRIPTION BOX */
+.desc-box{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-left:4px solid var(--text);
+  padding:14px 16px;
+  margin-bottom:20px;
+  font-size:13px;
+  color:var(--muted);
+  font-family:'IBM Plex Mono',monospace;
+  line-height:1.6;
+}
+.desc-box strong{color:var(--text);}
+
+/* QUEUE VIS AREA */
+.queue-vis-wrap{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:0;
+  padding:20px;
+  margin-bottom:20px;
+  min-height:110px;
+  position:relative;
+}
+.vis-labels{
+  display:flex;
+  justify-content:space-between;
+  font-size:10px;
+  font-family:'IBM Plex Mono',monospace;
+  color:var(--muted);
+  margin-bottom:10px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+}
+.queue-track{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  flex-wrap:wrap;
+  min-height:54px;
+}
+.q-item{
+  padding:10px 14px;
+  border:1.5px solid var(--border2);
+  background:var(--surface2);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  font-weight:600;
+  border-radius:4px;
+  position:relative;
+  animation:popIn 0.2s ease;
+  transition:all 0.2s;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:3px;
+  min-width:48px;
+  text-align:center;
+}
+.q-item .val{font-size:14px;}
+.q-item .meta{font-size:9px;color:var(--muted);font-weight:400;}
+.q-item.front{border-color:var(--deq);background:var(--deq-bg);color:var(--deq);}
+.q-item.front .meta{color:var(--deq);opacity:0.7;}
+.q-item.rear{border-color:var(--enq);background:var(--enq-bg);color:var(--enq);}
+.q-item.rear .meta{color:var(--enq);opacity:0.7;}
+.q-item.both{border-color:var(--pri);background:var(--pri-bg);color:var(--pri);}
+.q-item.peek-glow{box-shadow:0 0 0 2.5px var(--peek);border-color:var(--peek);transition:box-shadow 0.1s;}
+.q-item.leaving{animation:popOut 0.18s ease forwards;}
+.q-empty{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  color:var(--muted);
+  padding:14px 0;
+}
+/* circular ring indicator */
+.circular-ring{
+  display:inline-block;
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--pri);
+  margin-right:4px;
+  vertical-align:middle;
+}
+@keyframes popIn{from{opacity:0;transform:scale(0.85);}to{opacity:1;transform:scale(1);}}
+@keyframes popOut{from{opacity:1;transform:scale(1);}to{opacity:0;transform:scale(0.8);}}
+
+/* CONTROLS */
+.controls-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-bottom:20px;
+}
+.ctrl-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  padding:16px;
+}
+.ctrl-card-title{
+  font-size:10px;
+  font-family:'IBM Plex Mono',monospace;
+  text-transform:uppercase;
+  letter-spacing:1.5px;
+  color:var(--muted);
+  margin-bottom:12px;
+}
+.input-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+input[type=text],input[type=number]{
+  background:var(--surface2);
+  border:1.5px solid var(--border2);
+  color:var(--text);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  padding:7px 10px;
+  outline:none;
+  border-radius:3px;
+  transition:border-color 0.15s;
+}
+input[type=text]{flex:1;min-width:80px;}
+input[type=number]{width:68px;}
+input:focus{border-color:var(--text);}
+button{
+  padding:8px 14px;
+  border-radius:3px;
+  border:1.5px solid;
+  font-family:'Syne',sans-serif;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+  transition:all 0.12s;
+  white-space:nowrap;
+}
+button:active{transform:scale(0.96);}
+.btn-enq{background:var(--enq-bg);border-color:var(--enq);color:var(--enq);}
+.btn-deq{background:var(--deq-bg);border-color:var(--deq);color:var(--deq);}
+.btn-peek{background:var(--peek-bg);border-color:var(--peek);color:var(--peek);}
+.btn-clear{background:var(--surface2);border-color:var(--border2);color:var(--muted);}
+.btn-front{background:var(--deq-bg);border-color:var(--deq);color:var(--deq);}
+.btn-rear{background:var(--enq-bg);border-color:var(--enq);color:var(--enq);}
+button:hover{filter:brightness(0.92);}
+
+/* STATS ROW */
+.stats-row{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+.stat{
+  flex:1;
+  background:var(--surface);
+  border:1px solid var(--border);
+  padding:10px 12px;
+  text-align:center;
+}
+.stat-label{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;margin-bottom:4px;}
+.stat-val{font-size:20px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+
+/* LOG */
+.log-card{background:var(--surface);border:1px solid var(--border);padding:14px;}
+.log-title{font-size:10px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.log-box{font-family:'IBM Plex Mono',monospace;font-size:11px;max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;}
+.log-box::-webkit-scrollbar{width:3px;}
+.log-box::-webkit-scrollbar-thumb{background:var(--border2);}
+.log-entry{padding:2px 0;border-bottom:1px solid var(--surface2);color:var(--muted);animation:fadeIn 0.2s ease;}
+.log-entry.enq{color:var(--enq);}
+.log-entry.deq{color:var(--deq);}
+.log-entry.peek{color:var(--peek);}
+.log-entry.err{color:#c1440e;}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-4px);}to{opacity:1;transform:translateX(0);}}
+
+/* capacity bar */
+.cap-bar-wrap{margin-top:10px;}
+.cap-bar-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-bottom:4px;}
+.cap-bar-bg{background:var(--surface2);height:5px;border-radius:2px;overflow:hidden;}
+.cap-bar-fill{height:100%;border-radius:2px;background:var(--enq);transition:width 0.3s,background 0.3s;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>// <span>QUEUE</span> VISUALIZER</h1>
+  <p>enqueue · dequeue · peek · all types</p>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('linear')">01 Linear</button>
+  <button class="tab-btn" onclick="switchTab('circular')">02 Circular</button>
+  <button class="tab-btn" onclick="switchTab('priority')">03 Priority</button>
+  <button class="tab-btn" onclick="switchTab('deque')">04 Deque</button>
+</div>
+
+<!-- ===================== LINEAR ===================== -->
+<div class="panel active" id="panel-linear">
+  <div class="desc-box">
+    <strong>Linear Queue</strong> — FIFO: First In, First Out. Elements enter from the <strong>rear</strong> and leave from the <strong>front</strong>. Like a line at a ticket counter — first person in line is served first.
+  </div>
+
+  <div class="queue-vis-wrap">
+    <div class="vis-labels"><span>← FRONT (dequeue here)</span><span>(enqueue here) REAR →</span></div>
+    <div class="queue-track" id="linear-track"><div class="q-empty">[ queue is empty ]</div></div>
+  </div>
+
+  <div class="controls-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Enqueue (add to rear)</div>
+      <div class="input-row">
+        <input type="text" id="linear-val" placeholder="value..."/>
+        <button class="btn-enq" onclick="linearEnq()">+ Enqueue</button>
+      </div>
+      <div class="input-row">
+        <button class="btn-deq" onclick="linearDeq()">− Dequeue</button>
+        <button class="btn-peek" onclick="linearPeek()">◎ Peek</button>
+        <button class="btn-clear" onclick="linearClear()">✕ Clear</button>
+      </div>
+      <div class="cap-bar-wrap">
+        <div class="cap-bar-label"><span>fill level</span><span id="linear-fill">0 / 8</span></div>
+        <div class="cap-bar-bg"><div class="cap-bar-fill" id="linear-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Stats</div>
+      <div class="stats-row" style="margin-bottom:0;">
+        <div class="stat"><div class="stat-label">Size</div><div class="stat-val" id="linear-size">0</div></div>
+        <div class="stat"><div class="stat-label">Front</div><div class="stat-val" id="linear-front" style="font-size:15px;">—</div></div>
+        <div class="stat"><div class="stat-label">Rear</div><div class="stat-val" id="linear-rear" style="font-size:15px;">—</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="linear-log"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<!-- ===================== CIRCULAR ===================== -->
+<div class="panel" id="panel-circular">
+  <div class="desc-box">
+    <strong>Circular Queue</strong> — Same FIFO rule, but the last position wraps around to the first position. This reuses empty slots left by dequeued elements — much more memory-efficient than a linear queue.
+  </div>
+
+  <div class="queue-vis-wrap">
+    <div class="vis-labels"><span>slots (wrap-around enabled)</span><span id="circ-wrap-info">head=0 tail=0</span></div>
+    <div class="queue-track" id="circular-track"><div class="q-empty">[ queue is empty ]</div></div>
+  </div>
+
+  <div class="controls-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Enqueue / Dequeue</div>
+      <div class="input-row">
+        <input type="text" id="circular-val" placeholder="value..."/>
+        <button class="btn-enq" onclick="circEnq()">+ Enqueue</button>
+      </div>
+      <div class="input-row">
+        <button class="btn-deq" onclick="circDeq()">− Dequeue</button>
+        <button class="btn-peek" onclick="circPeek()">◎ Peek Front</button>
+        <button class="btn-clear" onclick="circClear()">✕ Clear</button>
+      </div>
+      <div class="cap-bar-wrap">
+        <div class="cap-bar-label"><span>fill level</span><span id="circ-fill">0 / 6</span></div>
+        <div class="cap-bar-bg"><div class="cap-bar-fill" id="circ-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Stats</div>
+      <div class="stats-row" style="margin-bottom:0;">
+        <div class="stat"><div class="stat-label">Size</div><div class="stat-val" id="circ-size">0</div></div>
+        <div class="stat"><div class="stat-label">Head</div><div class="stat-val" id="circ-head" style="font-size:15px;">0</div></div>
+        <div class="stat"><div class="stat-label">Tail</div><div class="stat-val" id="circ-tail" style="font-size:15px;">0</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="circ-log"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<!-- ===================== PRIORITY ===================== -->
+<div class="panel" id="panel-priority">
+  <div class="desc-box">
+    <strong>Priority Queue</strong> — Elements have a <strong>priority number</strong>. Lower number = higher priority and gets dequeued first. If priorities are equal, FIFO applies. Used in CPU scheduling, Dijkstra's algorithm, etc.
+  </div>
+
+  <div class="queue-vis-wrap">
+    <div class="vis-labels"><span>← highest priority (dequeues first)</span><span>lowest priority →</span></div>
+    <div class="queue-track" id="priority-track"><div class="q-empty">[ queue is empty ]</div></div>
+  </div>
+
+  <div class="controls-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Enqueue with Priority</div>
+      <div class="input-row">
+        <input type="text" id="priority-val" placeholder="value..." style="flex:1;"/>
+        <input type="number" id="priority-pri" placeholder="pri" min="1" max="9" value="1" title="Priority (1=highest)"/>
+        <button class="btn-enq" onclick="priEnq()">+ Enqueue</button>
+      </div>
+      <div class="input-row">
+        <button class="btn-deq" onclick="priDeq()">− Dequeue (highest pri)</button>
+        <button class="btn-peek" onclick="priPeek()">◎ Peek</button>
+        <button class="btn-clear" onclick="priClear()">✕ Clear</button>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Stats</div>
+      <div class="stats-row" style="margin-bottom:0;">
+        <div class="stat"><div class="stat-label">Size</div><div class="stat-val" id="pri-size">0</div></div>
+        <div class="stat"><div class="stat-label">Next Out</div><div class="stat-val" id="pri-next" style="font-size:13px;">—</div></div>
+        <div class="stat"><div class="stat-label">Top Pri</div><div class="stat-val" id="pri-top">—</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="pri-log"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<!-- ===================== DEQUE ===================== -->
+<div class="panel" id="panel-deque">
+  <div class="desc-box">
+    <strong>Double-Ended Queue (Deque)</strong> — Elements can be added or removed from <strong>both ends</strong> (front and rear). It's like a combination of a stack and a queue. Python's <code>collections.deque</code> uses this.
+  </div>
+
+  <div class="queue-vis-wrap">
+    <div class="vis-labels"><span>← FRONT</span><span>REAR →</span></div>
+    <div class="queue-track" id="deque-track"><div class="q-empty">[ deque is empty ]</div></div>
+  </div>
+
+  <div class="controls-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Add Elements</div>
+      <div class="input-row">
+        <input type="text" id="deque-val" placeholder="value..."/>
+      </div>
+      <div class="input-row">
+        <button class="btn-front" onclick="dequeAddFront()">← Add Front</button>
+        <button class="btn-rear" onclick="dequeAddRear()">Add Rear →</button>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-card-title">Remove / Peek</div>
+      <div class="input-row">
+        <button class="btn-deq" onclick="dequeRemFront()">← Remove Front</button>
+        <button class="btn-enq" onclick="dequeRemRear()">Remove Rear →</button>
+      </div>
+      <div class="input-row">
+        <button class="btn-peek" onclick="dequePeekFront()">◎ Peek Front</button>
+        <button class="btn-peek" onclick="dequePeekRear()">◎ Peek Rear</button>
+        <button class="btn-clear" onclick="dequeClear()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-label">Size</div><div class="stat-val" id="deque-size">0</div></div>
+    <div class="stat"><div class="stat-label">Front</div><div class="stat-val" id="deque-front" style="font-size:14px;">—</div></div>
+    <div class="stat"><div class="stat-label">Rear</div><div class="stat-val" id="deque-rear" style="font-size:14px;">—</div></div>
+  </div>
+
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="deque-log"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<script>
+// ─── TAB SWITCH ───
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ─── HELPERS ───
+function ts() {
+  return new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function addLog(id, msg, type) {
+  const box = document.getElementById(id);
+  const e = document.createElement('div');
+  e.className = 'log-entry ' + (type||'');
+  e.textContent = `[${ts()}] ${msg}`;
+  box.insertBefore(e, box.firstChild);
+  while(box.children.length > 30) box.removeChild(box.lastChild);
+}
+function animRemove(el, cb) {
+  el.classList.add('leaving');
+  setTimeout(cb, 170);
+}
+function peekGlow(el) {
+  el.classList.add('peek-glow');
+  setTimeout(() => el.classList.remove('peek-glow'), 700);
+}
+
+// ════════════════════════════════
+// 1. LINEAR QUEUE
+// ════════════════════════════════
+let LQ = [];
+const LQ_CAP = 8;
+
+function linearRender() {
+  const track = document.getElementById('linear-track');
+  track.innerHTML = '';
+  if (!LQ.length) { track.innerHTML = '<div class="q-empty">[ queue is empty ]</div>'; }
+  else {
+    LQ.forEach((v, i) => {
+      const el = document.createElement('div');
+      const cls = i===0 && i===LQ.length-1 ? 'both' : i===0 ? 'front' : i===LQ.length-1 ? 'rear' : '';
+      el.className = 'q-item ' + cls;
+      el.dataset.idx = i;
+      el.innerHTML = `<span class="val">${v}</span><span class="meta">${i===0?'front':i===LQ.length-1?'rear':''}</span>`;
+      track.appendChild(el);
+    });
+  }
+  document.getElementById('linear-size').textContent = LQ.length;
+  document.getElementById('linear-front').textContent = LQ.length ? LQ[0] : '—';
+  document.getElementById('linear-rear').textContent = LQ.length ? LQ[LQ.length-1] : '—';
+  const pct = (LQ.length/LQ_CAP)*100;
+  document.getElementById('linear-bar').style.width = pct + '%';
+  document.getElementById('linear-bar').style.background = pct>=100?'var(--deq)':pct>=75?'#e07b2a':'var(--enq)';
+  document.getElementById('linear-fill').textContent = `${LQ.length} / ${LQ_CAP}`;
+}
+function linearEnq() {
+  const v = document.getElementById('linear-val').value.trim();
+  if (!v) { addLog('linear-log','✗ enter a value','err'); return; }
+  if (LQ.length >= LQ_CAP) { addLog('linear-log','✗ overflow — queue full','err'); return; }
+  LQ.push(v);
+  addLog('linear-log', `+ enqueued: ${v}`, 'enq');
+  document.getElementById('linear-val').value = '';
+  linearRender();
+}
+function linearDeq() {
+  if (!LQ.length) { addLog('linear-log','✗ underflow — queue empty','err'); return; }
+  const track = document.getElementById('linear-track');
+  const front = track.querySelector('.q-item');
+  if (front) {
+    animRemove(front, () => { const v=LQ.shift(); addLog('linear-log',`− dequeued: ${v}`,'deq'); linearRender(); });
+  }
+}
+function linearPeek() {
+  if (!LQ.length) { addLog('linear-log','✗ queue is empty','err'); return; }
+  addLog('linear-log', `◎ front is: ${LQ[0]}`, 'peek');
+  const front = document.getElementById('linear-track').querySelector('.q-item');
+  if (front) peekGlow(front);
+}
+function linearClear() {
+  LQ=[]; addLog('linear-log','✕ cleared',''); linearRender();
+}
+document.getElementById('linear-val').addEventListener('keydown', e=>{ if(e.key==='Enter') linearEnq(); });
+linearRender();
+
+// ════════════════════════════════
+// 2. CIRCULAR QUEUE
+// ════════════════════════════════
+const CQ_CAP = 6;
+let CQ = new Array(CQ_CAP).fill(null);
+let cHead = 0, cTail = 0, cSize = 0;
+
+function circRender() {
+  const track = document.getElementById('circular-track');
+  track.innerHTML = '';
+  if (cSize === 0) { track.innerHTML = '<div class="q-empty">[ queue is empty ]</div>'; }
+  else {
+    for (let i = 0; i < cSize; i++) {
+      const idx = (cHead + i) % CQ_CAP;
+      const el = document.createElement('div');
+      const isF = i === 0, isR = i === cSize - 1;
+      const cls = isF && isR ? 'both' : isF ? 'front' : isR ? 'rear' : '';
+      el.className = 'q-item ' + cls;
+      el.innerHTML = `<span class="val">${CQ[idx]}</span><span class="meta">[${idx}]${isF?' head':isR?' tail':''}</span>`;
+      track.appendChild(el);
+    }
+  }
+  document.getElementById('circ-size').textContent = cSize;
+  document.getElementById('circ-head').textContent = cHead;
+  document.getElementById('circ-tail').textContent = cTail;
+  document.getElementById('circ-wrap-info').textContent = `head=${cHead} tail=${cTail} cap=${CQ_CAP}`;
+  const pct = (cSize/CQ_CAP)*100;
+  document.getElementById('circ-bar').style.width = pct+'%';
+  document.getElementById('circ-bar').style.background = pct>=100?'var(--deq)':pct>=75?'#e07b2a':'var(--enq)';
+  document.getElementById('circ-fill').textContent = `${cSize} / ${CQ_CAP}`;
+}
+function circEnq() {
+  const v = document.getElementById('circular-val').value.trim();
+  if (!v) { addLog('circ-log','✗ enter a value','err'); return; }
+  if (cSize === CQ_CAP) { addLog('circ-log','✗ overflow — circular queue full','err'); return; }
+  CQ[cTail] = v;
+  cTail = (cTail + 1) % CQ_CAP;
+  cSize++;
+  addLog('circ-log', `+ enqueued: ${v} at slot ${(cTail-1+CQ_CAP)%CQ_CAP}`, 'enq');
+  document.getElementById('circular-val').value = '';
+  circRender();
+}
+function circDeq() {
+  if (cSize === 0) { addLog('circ-log','✗ underflow — queue empty','err'); return; }
+  const v = CQ[cHead];
+  CQ[cHead] = null;
+  cHead = (cHead + 1) % CQ_CAP;
+  cSize--;
+  addLog('circ-log', `− dequeued: ${v}`, 'deq');
+  circRender();
+}
+function circPeek() {
+  if (cSize === 0) { addLog('circ-log','✗ queue is empty','err'); return; }
+  addLog('circ-log', `◎ front is: ${CQ[cHead]}`, 'peek');
+  const front = document.getElementById('circular-track').querySelector('.q-item');
+  if (front) peekGlow(front);
+}
+function circClear() {
+  CQ = new Array(CQ_CAP).fill(null); cHead=0; cTail=0; cSize=0;
+  addLog('circ-log','✕ cleared',''); circRender();
+}
+document.getElementById('circular-val').addEventListener('keydown', e=>{ if(e.key==='Enter') circEnq(); });
+circRender();
+
+// ════════════════════════════════
+// 3. PRIORITY QUEUE
+// ════════════════════════════════
+let PQ = []; // [{val, pri}]
+
+function priRender() {
+  const track = document.getElementById('priority-track');
+  track.innerHTML = '';
+  if (!PQ.length) { track.innerHTML = '<div class="q-empty">[ queue is empty ]</div>'; }
+  else {
+    PQ.forEach((item, i) => {
+      const el = document.createElement('div');
+      const cls = i===0 ? 'front' : i===PQ.length-1 ? 'rear' : '';
+      el.className = 'q-item ' + cls;
+      el.innerHTML = `<span class="val">${item.val}</span><span class="meta">pri: ${item.pri}</span>`;
+      track.appendChild(el);
+    });
+  }
+  document.getElementById('pri-size').textContent = PQ.length;
+  document.getElementById('pri-next').textContent = PQ.length ? PQ[0].val : '—';
+  document.getElementById('pri-top').textContent = PQ.length ? PQ[0].pri : '—';
+}
+function priEnq() {
+  const v = document.getElementById('priority-val').value.trim();
+  const p = parseInt(document.getElementById('priority-pri').value);
+  if (!v) { addLog('pri-log','✗ enter a value','err'); return; }
+  if (isNaN(p)||p<1||p>9) { addLog('pri-log','✗ priority must be 1-9','err'); return; }
+  PQ.push({val:v, pri:p});
+  PQ.sort((a,b) => a.pri - b.pri || 0);
+  addLog('pri-log', `+ enqueued: ${v} (priority ${p})`, 'enq');
+  document.getElementById('priority-val').value = '';
+  priRender();
+}
+function priDeq() {
+  if (!PQ.length) { addLog('pri-log','✗ queue is empty','err'); return; }
+  const track = document.getElementById('priority-track');
+  const front = track.querySelector('.q-item');
+  if (front) {
+    animRemove(front, () => {
+      const item = PQ.shift();
+      addLog('pri-log', `− dequeued: ${item.val} (priority ${item.pri})`, 'deq');
+      priRender();
+    });
+  }
+}
+function priPeek() {
+  if (!PQ.length) { addLog('pri-log','✗ queue is empty','err'); return; }
+  addLog('pri-log', `◎ highest priority: ${PQ[0].val} (pri ${PQ[0].pri})`, 'peek');
+  const front = document.getElementById('priority-track').querySelector('.q-item');
+  if (front) peekGlow(front);
+}
+function priClear() {
+  PQ=[]; addLog('pri-log','✕ cleared',''); priRender();
+}
+document.getElementById('priority-val').addEventListener('keydown', e=>{ if(e.key==='Enter') priEnq(); });
+priRender();
+
+// ════════════════════════════════
+// 4. DEQUE
+// ════════════════════════════════
+let DQ = [];
+const DQ_CAP = 10;
+
+function dequeRender() {
+  const track = document.getElementById('deque-track');
+  track.innerHTML = '';
+  if (!DQ.length) { track.innerHTML = '<div class="q-empty">[ deque is empty ]</div>'; }
+  else {
+    DQ.forEach((v, i) => {
+      const el = document.createElement('div');
+      const isF = i===0, isR = i===DQ.length-1;
+      const cls = isF&&isR?'both':isF?'front':isR?'rear':'';
+      el.className = 'q-item ' + cls;
+      el.innerHTML = `<span class="val">${v}</span><span class="meta">${isF?'front':isR?'rear':''}</span>`;
+      track.appendChild(el);
+    });
+  }
+  document.getElementById('deque-size').textContent = DQ.length;
+  document.getElementById('deque-front').textContent = DQ.length ? DQ[0] : '—';
+  document.getElementById('deque-rear').textContent = DQ.length ? DQ[DQ.length-1] : '—';
+}
+function dequeVal() {
+  const v = document.getElementById('deque-val').value.trim();
+  if (!v) { addLog('deque-log','✗ enter a value','err'); return null; }
+  if (DQ.length >= DQ_CAP) { addLog('deque-log','✗ deque is full','err'); return null; }
+  document.getElementById('deque-val').value = '';
+  return v;
+}
+function dequeAddFront() {
+  const v = dequeVal(); if(!v) return;
+  DQ.unshift(v);
+  addLog('deque-log', `← added to front: ${v}`, 'enq');
+  dequeRender();
+}
+function dequeAddRear() {
+  const v = dequeVal(); if(!v) return;
+  DQ.push(v);
+  addLog('deque-log', `→ added to rear: ${v}`, 'enq');
+  dequeRender();
+}
+function dequeRemFront() {
+  if (!DQ.length) { addLog('deque-log','✗ deque is empty','err'); return; }
+  const track = document.getElementById('deque-track');
+  const front = track.querySelector('.q-item');
+  animRemove(front, () => { const v=DQ.shift(); addLog('deque-log',`← removed from front: ${v}`,'deq'); dequeRender(); });
+}
+function dequeRemRear() {
+  if (!DQ.length) { addLog('deque-log','✗ deque is empty','err'); return; }
+  const track = document.getElementById('deque-track');
+  const items = track.querySelectorAll('.q-item');
+  const last = items[items.length-1];
+  animRemove(last, () => { const v=DQ.pop(); addLog('deque-log',`→ removed from rear: ${v}`,'deq'); dequeRender(); });
+}
+function dequePeekFront() {
+  if (!DQ.length) { addLog('deque-log','✗ deque is empty','err'); return; }
+  addLog('deque-log', `◎ front is: ${DQ[0]}`, 'peek');
+  const front = document.getElementById('deque-track').querySelector('.q-item');
+  if (front) peekGlow(front);
+}
+function dequePeekRear() {
+  if (!DQ.length) { addLog('deque-log','✗ deque is empty','err'); return; }
+  addLog('deque-log', `◎ rear is: ${DQ[DQ.length-1]}`, 'peek');
+  const items = document.getElementById('deque-track').querySelectorAll('.q-item');
+  if (items.length) peekGlow(items[items.length-1]);
+}
+function dequeClear() {
+  DQ=[]; addLog('deque-log','✕ cleared',''); dequeRender();
+}
+document.getElementById('deque-val').addEventListener('keydown', e=>{ if(e.key==='Enter') dequeAddRear(); });
+dequeRender();
+</script>
+</body>
+</html>
