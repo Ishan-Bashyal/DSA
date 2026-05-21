@@ -79,26 +79,13 @@ def display():
         print()  # for new line
 
 
-# ---------------- TESTING ----------------
-
-# Insert elements
 enqueue(10)
 enqueue(20)
 enqueue(30)
-
-# Display queue
 display()
-
-# Remove one element
 dequeue()
-
-# Display again
 display()
-
-# Insert more elements (circular behavior)
 enqueue(40)
 enqueue(50)
 enqueue(60)
-
-# Final display
 display()
