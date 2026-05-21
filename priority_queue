@@ -1,0 +1,64 @@
+class PriorityQueue:
+    def __init__(self, capacity=5):
+        self.capacity = capacity
+        self.queue = []  # stores (priority, value) pairs , eg: [1, "ram"]
+
+    def is_full(self):
+        return len(self.queue) == self.capacity
+
+    def is_empty(self):
+        return len(self.queue) == 0
+
+    # Enqueue with priority (lower number = higher priority), eg: 0 is the highest priority
+    def enqueue(self, value, priority):
+        if self.is_full():
+            print("Queue Overflow")
+        else:
+            self.queue.append((priority, value))
+            self.queue.sort(key=lambda x: x[0])  # sort by priority
+            print(f"{value} inserted with priority {priority}")
+
+    # Dequeue highest priority (front of sorted list)
+    def dequeue(self):
+        if self.is_empty():
+            print("Queue Underflow")
+        else:
+            priority, value = self.queue.pop(0)
+            print(f"{value} removed (priority {priority})")
+
+    # Peek at highest priority element
+    def peek(self):
+        if self.is_empty():
+            print("Queue is empty")
+        else:
+            priority, value = self.queue[0]
+            print(f"Highest priority: {value} (priority {priority})")
+
+    # Display all elements
+    def display(self):
+        if self.is_empty():
+            print("Queue is empty")
+        else:
+            print("Queue (highest to lowest priority):")
+            for priority, value in self.queue:
+                print(f"{value} → priority {priority}")
+
+
+pq = PriorityQueue()
+pq.enqueue("Ram", 3)
+pq.enqueue("Shyam", 1)
+pq.enqueue("Hari", 5)
+pq.enqueue("Sita", 2)
+pq.enqueue("Gita", 0)
+print()
+
+pq.display()
+
+print()
+pq.peek()
+
+print()
+pq.dequeue()
+pq.dequeue()
+print()
+pq.display()
