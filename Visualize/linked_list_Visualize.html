@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Linked List Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0e1a;
+  --surface:#111827;
+  --surface2:#1a2235;
+  --surface3:#212d42;
+  --border:#2a3850;
+  --border2:#344560;
+  --text:#e2eaf8;
+  --muted:#5a7090;
+  --dim:#3a5070;
+  --node:#1e3a5f;
+  --node-border:#3b82f6;
+  --node-text:#93c5fd;
+  --head-bg:#1a3d2b;
+  --head-border:#22c55e;
+  --head-text:#86efac;
+  --tail-bg:#3d1a2b;
+  --tail-border:#f43f5e;
+  --tail-text:#fda4af;
+  --both-bg:#2d2a1a;
+  --both-border:#f59e0b;
+  --both-text:#fcd34d;
+  --arrow:#3b82f6;
+  --arrow2:#f43f5e;
+  --found:#22c55e;
+  --accent:#3b82f6;
+  --mono:'Fira Code',monospace;
+  --sans:'DM Sans',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;padding:28px 16px 60px;}
+
+/* HEADER */
+.hdr{max-width:960px;margin:0 auto 24px;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--border2);padding-bottom:14px;}
+.hdr h1{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.5px;color:var(--text);}
+.hdr h1 em{color:var(--accent);font-style:normal;}
+.hdr p{font-size:12px;color:var(--muted);font-family:var(--mono);}
+
+/* TABS */
+.tabs{max-width:960px;margin:0 auto 20px;display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border2);border-radius:6px;overflow:hidden;}
+.tab{padding:10px 6px;background:var(--surface);border:none;border-right:1px solid var(--border);font-family:var(--mono);font-size:10px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;text-align:center;line-height:1.4;}
+.tab:last-child{border-right:none;}
+.tab:hover{background:var(--surface2);color:var(--text);}
+.tab.active{background:var(--accent);color:#fff;font-weight:600;}
+
+/* PANEL */
+.panel{display:none;max-width:960px;margin:0 auto;}
+.panel.active{display:block;}
+
+/* DESC */
+.desc{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);padding:12px 16px;margin-bottom:18px;font-size:12px;color:var(--muted);font-family:var(--mono);line-height:1.7;}
+.desc strong{color:var(--text);}
+
+/* VIS AREA */
+.vis-wrap{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px 16px;margin-bottom:18px;min-height:120px;overflow-x:auto;}
+.vis-label{font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+.vis-track{display:flex;align-items:center;gap:0;flex-wrap:nowrap;min-height:72px;padding-bottom:4px;}
+.vis-empty{font-family:var(--mono);font-size:13px;color:var(--dim);padding:18px 0;}
+
+/* NODE */
+.node-wrap{display:flex;align-items:center;gap:0;animation:nodeIn .25s ease;}
+.node-box{display:flex;flex-direction:column;align-items:stretch;border:1.5px solid var(--node-border);border-radius:6px;background:var(--node);min-width:52px;overflow:hidden;}
+.node-box.is-head{border-color:var(--head-border);background:var(--head-bg);}
+.node-box.is-tail{border-color:var(--tail-border);background:var(--tail-bg);}
+.node-box.is-both{border-color:var(--both-border);background:var(--both-bg);}
+.node-box.is-found{border-color:var(--found);box-shadow:0 0 0 2px var(--found)44;}
+.node-val{font-family:var(--mono);font-size:14px;font-weight:600;text-align:center;padding:10px 8px 6px;color:var(--node-text);}
+.node-box.is-head .node-val{color:var(--head-text);}
+.node-box.is-tail .node-val{color:var(--tail-text);}
+.node-box.is-both .node-val{color:var(--both-text);}
+.node-box.is-found .node-val{color:var(--found);}
+.node-ptr{display:flex;border-top:1px solid var(--border2);}
+.node-ptr-cell{flex:1;font-family:var(--mono);font-size:8px;color:var(--muted);text-align:center;padding:3px 2px;border-right:1px solid var(--border2);}
+.node-ptr-cell:last-child{border-right:none;}
+.node-label{font-size:9px;font-family:var(--mono);text-align:center;margin-top:4px;color:var(--muted);}
+.node-box.is-head .node-label{color:var(--head-border);}
+.node-box.is-tail .node-label{color:var(--tail-border);}
+.node-box.is-both .node-label{color:var(--both-border);}
+
+/* ARROWS */
+.arrow-fwd{display:flex;align-items:center;padding:0 3px;color:var(--arrow);font-size:16px;font-family:var(--mono);}
+.arrow-bwd{display:flex;align-items:center;padding:0 3px;color:var(--arrow2);font-size:10px;font-family:var(--mono);flex-direction:column;gap:1px;}
+.arrow-both{display:flex;flex-direction:column;align-items:center;padding:0 3px;gap:2px;}
+.arr-top{color:var(--arrow);font-size:11px;}
+.arr-bot{color:var(--arrow2);font-size:11px;}
+.circ-arrow{color:var(--accent);font-size:11px;padding:0 4px;opacity:.7;}
+
+/* CONTROLS */
+.ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.ctrl-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;}
+.ctrl-title{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;}
+.row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center;}
+input[type=text]{background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px;border-radius:4px;outline:none;flex:1;min-width:80px;transition:border-color .15s;}
+input:focus{border-color:var(--accent);}
+button{padding:7px 13px;border-radius:4px;border:1px solid;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;white-space:nowrap;}
+button:active{transform:scale(0.96);}
+.btn-ins{background:#1a3d5c;border-color:var(--accent);color:#93c5fd;}
+.btn-del{background:#3d1a1a;border-color:#f87171;color:#fca5a5;}
+.btn-act{background:#1a2d1a;border-color:#4ade80;color:#86efac;}
+.btn-srch{background:#2d1a3d;border-color:#a78bfa;color:#c4b5fd;}
+.btn-clr{background:var(--surface2);border-color:var(--border2);color:var(--muted);}
+button:hover{filter:brightness(1.25);}
+
+/* STATS */
+.stats-row{display:flex;gap:10px;margin-bottom:16px;}
+.stat{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;}
+.stat-lbl{font-size:9px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
+.stat-val{font-size:18px;font-weight:700;font-family:var(--mono);color:var(--text);}
+
+/* LOG */
+.log-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;}
+.log-title{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.log-box{font-family:var(--mono);font-size:11px;max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;}
+.log-box::-webkit-scrollbar{width:3px;}
+.log-box::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.log-entry{padding:2px 0;border-bottom:1px solid var(--surface2);color:var(--muted);animation:fadeIn .2s ease;}
+.log-entry.ins{color:#86efac;}
+.log-entry.del{color:#fca5a5;}
+.log-entry.srch{color:#c4b5fd;}
+.log-entry.trav{color:#93c5fd;}
+.log-entry.err{color:#fb923c;}
+
+@keyframes nodeIn{from{opacity:0;transform:scale(.85);}to{opacity:1;transform:scale(1);}}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-4px);}to{opacity:1;transform:translateX(0);}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>// <em>LINKED LIST</em> VISUALIZER</h1>
+  <p>insert · delete · search · traverse</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('sll',this)">01 Singly<br>Linear</button>
+  <button class="tab" onclick="switchTab('dll',this)">02 Doubly<br>Linear</button>
+  <button class="tab" onclick="switchTab('scl',this)">03 Singly<br>Circular</button>
+  <button class="tab" onclick="switchTab('dcl',this)">04 Doubly<br>Circular</button>
+</div>
+
+<!-- ══════════════ SINGLY LINEAR ══════════════ -->
+<div class="panel active" id="panel-sll">
+  <div class="desc"><strong>Singly Linear Linked List</strong> — Each node holds a value and a <strong>next</strong> pointer. Traversal only goes forward. Last node points to <strong>None</strong>.</div>
+  <div class="vis-wrap">
+    <div class="vis-label">nodes — head to tail</div>
+    <div class="vis-track" id="vis-sll"><div class="vis-empty">[ list is empty ]</div></div>
+  </div>
+  <div class="ctrl-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-title">Insert</div>
+      <div class="row"><input type="text" id="sll-val" placeholder="node value..."/></div>
+      <div class="row">
+        <button class="btn-ins" onclick="sllInsBegin()">+ Insert Beginning</button>
+        <button class="btn-ins" onclick="sllInsEnd()">+ Insert End</button>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-title">Operations</div>
+      <div class="row">
+        <button class="btn-del" onclick="sllDelBegin()">− Delete Beginning</button>
+        <button class="btn-del" onclick="sllDelEnd()">− Delete End</button>
+      </div>
+      <div class="row">
+        <input type="text" id="sll-srch" placeholder="search value..."/>
+        <button class="btn-srch" onclick="sllSearch()">⌕ Search</button>
+      </div>
+      <div class="row">
+        <button class="btn-act" onclick="sllTraverse()">↻ Traverse</button>
+        <button class="btn-clr" onclick="sllClear()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-lbl">Nodes</div><div class="stat-val" id="sll-count">0</div></div>
+    <div class="stat"><div class="stat-lbl">Head</div><div class="stat-val" id="sll-head" style="font-size:14px;">—</div></div>
+    <div class="stat"><div class="stat-lbl">Tail</div><div class="stat-val" id="sll-tail" style="font-size:14px;">—</div></div>
+  </div>
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="log-sll"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<!-- ══════════════ DOUBLY LINEAR ══════════════ -->
+<div class="panel" id="panel-dll">
+  <div class="desc"><strong>Doubly Linear Linked List</strong> — Each node has <strong>prev</strong> and <strong>next</strong> pointers. You can traverse both forward and backward. Head.prev = None, Tail.next = None.</div>
+  <div class="vis-wrap">
+    <div class="vis-label">nodes — bidirectional links</div>
+    <div class="vis-track" id="vis-dll"><div class="vis-empty">[ list is empty ]</div></div>
+  </div>
+  <div class="ctrl-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-title">Insert</div>
+      <div class="row"><input type="text" id="dll-val" placeholder="node value..."/></div>
+      <div class="row">
+        <button class="btn-ins" onclick="dllInsBegin()">+ Insert Beginning</button>
+        <button class="btn-ins" onclick="dllInsEnd()">+ Insert End</button>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-title">Operations</div>
+      <div class="row">
+        <button class="btn-del" onclick="dllDelBegin()">− Delete Beginning</button>
+        <button class="btn-del" onclick="dllDelEnd()">− Delete End</button>
+      </div>
+      <div class="row">
+        <input type="text" id="dll-srch" placeholder="search value..."/>
+        <button class="btn-srch" onclick="dllSearch()">⌕ Search</button>
+      </div>
+      <div class="row">
+        <button class="btn-act" onclick="dllTraverse()">↻ Traverse</button>
+        <button class="btn-clr" onclick="dllClear()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-lbl">Nodes</div><div class="stat-val" id="dll-count">0</div></div>
+    <div class="stat"><div class="stat-lbl">Head</div><div class="stat-val" id="dll-head" style="font-size:14px;">—</div></div>
+    <div class="stat"><div class="stat-lbl">Tail</div><div class="stat-val" id="dll-tail" style="font-size:14px;">—</div></div>
+  </div>
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="log-dll"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<!-- ══════════════ SINGLY CIRCULAR ══════════════ -->
+<div class="panel" id="panel-scl">
+  <div class="desc"><strong>Singly Circular Linked List</strong> — Like singly linear, but the <strong>last node's next points back to head</strong> instead of None. Forms a continuous loop.</div>
+  <div class="vis-wrap">
+    <div class="vis-label">nodes — last wraps back to head</div>
+    <div class="vis-track" id="vis-scl"><div class="vis-empty">[ list is empty ]</div></div>
+  </div>
+  <div class="ctrl-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-title">Insert</div>
+      <div class="row"><input type="text" id="scl-val" placeholder="node value..."/></div>
+      <div class="row">
+        <button class="btn-ins" onclick="sclInsBegin()">+ Insert Beginning</button>
+        <button class="btn-ins" onclick="sclInsEnd()">+ Insert End</button>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-title">Operations</div>
+      <div class="row">
+        <button class="btn-del" onclick="sclDelBegin()">− Delete Beginning</button>
+        <button class="btn-del" onclick="sclDelEnd()">− Delete End</button>
+      </div>
+      <div class="row">
+        <input type="text" id="scl-srch" placeholder="search value..."/>
+        <button class="btn-srch" onclick="sclSearch()">⌕ Search</button>
+      </div>
+      <div class="row">
+        <button class="btn-act" onclick="sclTraverse()">↻ Traverse</button>
+        <button class="btn-clr" onclick="sclClear()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-lbl">Nodes</div><div class="stat-val" id="scl-count">0</div></div>
+    <div class="stat"><div class="stat-lbl">Head</div><div class="stat-val" id="scl-head" style="font-size:14px;">—</div></div>
+    <div class="stat"><div class="stat-lbl">Tail</div><div class="stat-val" id="scl-tail" style="font-size:14px;">—</div></div>
+  </div>
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="log-scl"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<!-- ══════════════ DOUBLY CIRCULAR ══════════════ -->
+<div class="panel" id="panel-dcl">
+  <div class="desc"><strong>Doubly Circular Linked List</strong> — Has both <strong>prev</strong> and <strong>next</strong> pointers. Tail.next → Head and Head.prev → Tail. A fully connected loop in both directions.</div>
+  <div class="vis-wrap">
+    <div class="vis-label">nodes — bidirectional circular loop</div>
+    <div class="vis-track" id="vis-dcl"><div class="vis-empty">[ list is empty ]</div></div>
+  </div>
+  <div class="ctrl-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-title">Insert</div>
+      <div class="row"><input type="text" id="dcl-val" placeholder="node value..."/></div>
+      <div class="row">
+        <button class="btn-ins" onclick="dclInsBegin()">+ Insert Beginning</button>
+        <button class="btn-ins" onclick="dclInsEnd()">+ Insert End</button>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-title">Operations</div>
+      <div class="row">
+        <button class="btn-del" onclick="dclDelBegin()">− Delete Beginning</button>
+        <button class="btn-del" onclick="dclDelEnd()">− Delete End</button>
+      </div>
+      <div class="row">
+        <input type="text" id="dcl-srch" placeholder="search value..."/>
+        <button class="btn-srch" onclick="dclSearch()">⌕ Search</button>
+      </div>
+      <div class="row">
+        <button class="btn-act" onclick="dclTraverse()">↻ Traverse</button>
+        <button class="btn-clr" onclick="dclClear()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-lbl">Nodes</div><div class="stat-val" id="dcl-count">0</div></div>
+    <div class="stat"><div class="stat-lbl">Head</div><div class="stat-val" id="dcl-head" style="font-size:14px;">—</div></div>
+    <div class="stat"><div class="stat-lbl">Tail</div><div class="stat-val" id="dcl-tail" style="font-size:14px;">—</div></div>
+  </div>
+  <div class="log-card"><div class="log-title">Log</div><div class="log-box" id="log-dcl"><div class="log-entry">— ready —</div></div></div>
+</div>
+
+<script>
+// ─── TAB SWITCH ───
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── HELPERS ───
+function ts() {
+  return new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function log(id, msg, type) {
+  const box = document.getElementById('log-' + id);
+  const e = document.createElement('div');
+  e.className = 'log-entry ' + (type||'');
+  e.textContent = `[${ts()}] ${msg}`;
+  box.insertBefore(e, box.firstChild);
+  while(box.children.length > 40) box.removeChild(box.lastChild);
+}
+function getVal(id) {
+  const el = document.getElementById(id);
+  const v = el.value.trim();
+  el.value = '';
+  return v;
+}
+
+// ─── RENDER HELPERS ───
+function makeNode(val, role, ptrs) {
+  // role: 'head','tail','both',''
+  // ptrs: array of label strings for pointer cells
+  const wrap = document.createElement('div');
+  wrap.className = 'node-wrap';
+  const box = document.createElement('div');
+  box.className = 'node-box' + (role ? ' is-' + role : '');
+  box.dataset.val = val;
+  const valDiv = document.createElement('div');
+  valDiv.className = 'node-val';
+  valDiv.textContent = val;
+  box.appendChild(valDiv);
+  if(ptrs && ptrs.length) {
+    const ptrDiv = document.createElement('div');
+    ptrDiv.className = 'node-ptr';
+    ptrs.forEach(p => {
+      const cell = document.createElement('div');
+      cell.className = 'node-ptr-cell';
+      cell.textContent = p;
+      ptrDiv.appendChild(cell);
+    });
+    box.appendChild(ptrDiv);
+  }
+  const lbl = document.createElement('div');
+  lbl.className = 'node-label';
+  lbl.textContent = role === 'both' ? 'head/tail' : role || '';
+  box.appendChild(lbl);
+  wrap.appendChild(box);
+  return wrap;
+}
+function makeArrowFwd() {
+  const a = document.createElement('div');
+  a.className = 'arrow-fwd';
+  a.textContent = '→';
+  return a;
+}
+function makeArrowBoth() {
+  const a = document.createElement('div');
+  a.className = 'arrow-both';
+  a.innerHTML = '<span class="arr-top">→</span><span class="arr-bot">←</span>';
+  return a;
+}
+function makeCircArrow() {
+  const a = document.createElement('div');
+  a.className = 'circ-arrow';
+  a.textContent = '↩';
+  return a;
+}
+function setStats(prefix, list) {
+  document.getElementById(prefix+'-count').textContent = list.length;
+  document.getElementById(prefix+'-head').textContent = list.length ? list[0] : '—';
+  document.getElementById(prefix+'-tail').textContent = list.length ? list[list.length-1] : '—';
+}
+function flashFound(trackId, val) {
+  const track = document.getElementById(trackId);
+  track.querySelectorAll('.node-box').forEach(box => {
+    if(box.dataset.val === String(val)) {
+      box.classList.add('is-found');
+      setTimeout(() => box.classList.remove('is-found'), 1200);
+    }
+  });
+}
+
+// ════════════════════════════════════════
+// 1. SINGLY LINEAR
+// ════════════════════════════════════════
+let SLL = [];
+function sllRender(highlight) {
+  const track = document.getElementById('vis-sll');
+  track.innerHTML = '';
+  if(!SLL.length) { track.innerHTML = '<div class="vis-empty">[ list is empty ]</div>'; setStats('sll',SLL); return; }
+  SLL.forEach((v,i) => {
+    const role = SLL.length===1?'both':i===0?'head':i===SLL.length-1?'tail':'';
+    const nw = makeNode(v, role, ['next']);
+    if(highlight===v) nw.querySelector('.node-box').classList.add('is-found');
+    track.appendChild(nw);
+    if(i < SLL.length-1) track.appendChild(makeArrowFwd());
+    else { const nil = document.createElement('div'); nil.className='arrow-fwd'; nil.style.color='var(--muted)'; nil.textContent='→ None'; track.appendChild(nil); }
+  });
+  setStats('sll',SLL);
+}
+function sllInsBegin() {
+  const v = getVal('sll-val');
+  if(!v){log('sll','✗ enter a value','err');return;}
+  SLL.unshift(v); log('sll',`+ inserted "${v}" at beginning`,'ins'); sllRender();
+}
+function sllInsEnd() {
+  const v = getVal('sll-val');
+  if(!v){log('sll','✗ enter a value','err');return;}
+  SLL.push(v); log('sll',`+ inserted "${v}" at end`,'ins'); sllRender();
+}
+function sllDelBegin() {
+  if(!SLL.length){log('sll','✗ list is empty','err');return;}
+  const v=SLL.shift(); log('sll',`− deleted "${v}" from beginning`,'del'); sllRender();
+}
+function sllDelEnd() {
+  if(!SLL.length){log('sll','✗ list is empty','err');return;}
+  const v=SLL.pop(); log('sll',`− deleted "${v}" from end`,'del'); sllRender();
+}
+function sllSearch() {
+  const v = getVal('sll-srch');
+  if(!v){log('sll','✗ enter search value','err');return;}
+  const idx = SLL.indexOf(v);
+  if(idx>=0){ log('sll',`⌕ found "${v}" at index ${idx}`,'srch'); sllRender(v); flashFound('vis-sll',v); }
+  else { log('sll',`⌕ "${v}" not found`,'err'); }
+}
+function sllTraverse() {
+  if(!SLL.length){log('sll','✗ list is empty','err');return;}
+  log('sll','↻ traversal: ' + SLL.join(' → ') + ' → None','trav');
+}
+function sllClear() { SLL=[]; log('sll','✕ list cleared',''); sllRender(); }
+document.getElementById('sll-val').addEventListener('keydown',e=>{if(e.key==='Enter')sllInsEnd();});
+sllRender();
+
+// ════════════════════════════════════════
+// 2. DOUBLY LINEAR
+// ════════════════════════════════════════
+let DLL = [];
+function dllRender(highlight) {
+  const track = document.getElementById('vis-dll');
+  track.innerHTML = '';
+  if(!DLL.length){track.innerHTML='<div class="vis-empty">[ list is empty ]</div>';setStats('dll',DLL);return;}
+  DLL.forEach((v,i) => {
+    const role = DLL.length===1?'both':i===0?'head':i===DLL.length-1?'tail':'';
+    const nw = makeNode(v, role, ['prev','next']);
+    if(highlight===v) nw.querySelector('.node-box').classList.add('is-found');
+    track.appendChild(nw);
+    if(i < DLL.length-1) track.appendChild(makeArrowBoth());
+  });
+  setStats('dll',DLL);
+}
+function dllInsBegin(){const v=getVal('dll-val');if(!v){log('dll','✗ enter a value','err');return;}DLL.unshift(v);log('dll',`+ inserted "${v}" at beginning`,'ins');dllRender();}
+function dllInsEnd(){const v=getVal('dll-val');if(!v){log('dll','✗ enter a value','err');return;}DLL.push(v);log('dll',`+ inserted "${v}" at end`,'ins');dllRender();}
+function dllDelBegin(){if(!DLL.length){log('dll','✗ list is empty','err');return;}const v=DLL.shift();log('dll',`− deleted "${v}" from beginning`,'del');dllRender();}
+function dllDelEnd(){if(!DLL.length){log('dll','✗ list is empty','err');return;}const v=DLL.pop();log('dll',`− deleted "${v}" from end`,'del');dllRender();}
+function dllSearch(){
+  const v=getVal('dll-srch');if(!v){log('dll','✗ enter search value','err');return;}
+  const idx=DLL.indexOf(v);
+  if(idx>=0){log('dll',`⌕ found "${v}" at index ${idx}`,'srch');dllRender(v);flashFound('vis-dll',v);}
+  else{log('dll',`⌕ "${v}" not found`,'err');}
+}
+function dllTraverse(){if(!DLL.length){log('dll','✗ list is empty','err');return;}log('dll','↻ forward: '+DLL.join(' ⇄ '),'trav');log('dll','↻ backward: '+[...DLL].reverse().join(' ⇄ '),'trav');}
+function dllClear(){DLL=[];log('dll','✕ list cleared','');dllRender();}
+document.getElementById('dll-val').addEventListener('keydown',e=>{if(e.key==='Enter')dllInsEnd();});
+dllRender();
+
+// ════════════════════════════════════════
+// 3. SINGLY CIRCULAR
+// ════════════════════════════════════════
+let SCL = [];
+function sclRender(highlight) {
+  const track = document.getElementById('vis-scl');
+  track.innerHTML = '';
+  if(!SCL.length){track.innerHTML='<div class="vis-empty">[ list is empty ]</div>';setStats('scl',SCL);return;}
+  SCL.forEach((v,i) => {
+    const role = SCL.length===1?'both':i===0?'head':i===SCL.length-1?'tail':'';
+    const nw = makeNode(v, role, ['next']);
+    if(highlight===v) nw.querySelector('.node-box').classList.add('is-found');
+    track.appendChild(nw);
+    if(i < SCL.length-1) track.appendChild(makeArrowFwd());
+  });
+  // circular back arrow label
+  if(SCL.length>0){
+    const wrap = document.createElement('div');
+    wrap.style.cssText='display:flex;align-items:center;gap:4px;padding:0 6px;';
+    wrap.innerHTML='<span style="font-size:11px;color:var(--accent);font-family:var(--mono);">→ ↩ head</span>';
+    track.appendChild(wrap);
+  }
+  setStats('scl',SCL);
+}
+function sclInsBegin(){const v=getVal('scl-val');if(!v){log('scl','✗ enter a value','err');return;}SCL.unshift(v);log('scl',`+ inserted "${v}" at beginning`,'ins');sclRender();}
+function sclInsEnd(){const v=getVal('scl-val');if(!v){log('scl','✗ enter a value','err');return;}SCL.push(v);log('scl',`+ inserted "${v}" at end`,'ins');sclRender();}
+function sclDelBegin(){if(!SCL.length){log('scl','✗ list is empty','err');return;}const v=SCL.shift();log('scl',`− deleted "${v}" from beginning`,'del');sclRender();}
+function sclDelEnd(){if(!SCL.length){log('scl','✗ list is empty','err');return;}const v=SCL.pop();log('scl',`− deleted "${v}" from end`,'del');sclRender();}
+function sclSearch(){
+  const v=getVal('scl-srch');if(!v){log('scl','✗ enter search value','err');return;}
+  const idx=SCL.indexOf(v);
+  if(idx>=0){log('scl',`⌕ found "${v}" at index ${idx}`,'srch');sclRender(v);flashFound('vis-scl',v);}
+  else{log('scl',`⌕ "${v}" not found`,'err');}
+}
+function sclTraverse(){if(!SCL.length){log('scl','✗ list is empty','err');return;}log('scl','↻ '+SCL.join(' → ')+' → (back to head: '+SCL[0]+')', 'trav');}
+function sclClear(){SCL=[];log('scl','✕ list cleared','');sclRender();}
+document.getElementById('scl-val').addEventListener('keydown',e=>{if(e.key==='Enter')sclInsEnd();});
+sclRender();
+
+// ════════════════════════════════════════
+// 4. DOUBLY CIRCULAR
+// ════════════════════════════════════════
+let DCL = [];
+function dclRender(highlight) {
+  const track = document.getElementById('vis-dcl');
+  track.innerHTML = '';
+  if(!DCL.length){track.innerHTML='<div class="vis-empty">[ list is empty ]</div>';setStats('dcl',DCL);return;}
+  DCL.forEach((v,i) => {
+    const role = DCL.length===1?'both':i===0?'head':i===DCL.length-1?'tail':'';
+    const nw = makeNode(v, role, ['prev','next']);
+    if(highlight===v) nw.querySelector('.node-box').classList.add('is-found');
+    track.appendChild(nw);
+    if(i < DCL.length-1) track.appendChild(makeArrowBoth());
+  });
+  if(DCL.length>0){
+    const wrap = document.createElement('div');
+    wrap.style.cssText='display:flex;flex-direction:column;align-items:center;padding:0 6px;gap:2px;';
+    wrap.innerHTML='<span style="font-size:10px;color:var(--accent);font-family:var(--mono);">→ head</span><span style="font-size:10px;color:var(--arrow2);font-family:var(--mono);">tail ←</span>';
+    track.appendChild(wrap);
+  }
+  setStats('dcl',DCL);
+}
+function dclInsBegin(){const v=getVal('dcl-val');if(!v){log('dcl','✗ enter a value','err');return;}DCL.unshift(v);log('dcl',`+ inserted "${v}" at beginning`,'ins');dclRender();}
+function dclInsEnd(){const v=getVal('dcl-val');if(!v){log('dcl','✗ enter a value','err');return;}DCL.push(v);log('dcl',`+ inserted "${v}" at end`,'ins');dclRender();}
+function dclDelBegin(){if(!DCL.length){log('dcl','✗ list is empty','err');return;}const v=DCL.shift();log('dcl',`− deleted "${v}" from beginning`,'del');dclRender();}
+function dclDelEnd(){if(!DCL.length){log('dcl','✗ list is empty','err');return;}const v=DCL.pop();log('dcl',`− deleted "${v}" from end`,'del');dclRender();}
+function dclSearch(){
+  const v=getVal('dcl-srch');if(!v){log('dcl','✗ enter search value','err');return;}
+  const idx=DCL.indexOf(v);
+  if(idx>=0){log('dcl',`⌕ found "${v}" at index ${idx}`,'srch');dclRender(v);flashFound('vis-dcl',v);}
+  else{log('dcl',`⌕ "${v}" not found`,'err');}
+}
+function dclTraverse(){
+  if(!DCL.length){log('dcl','✗ list is empty','err');return;}
+  log('dcl','↻ forward: '+DCL.join(' ⇄ ')+' → (back to head)','trav');
+  log('dcl','↻ backward: '+[...DCL].reverse().join(' ⇄ ')+' → (back to tail)','trav');
+}
+function dclClear(){DCL=[];log('dcl','✕ list cleared','');dclRender();}
+document.getElementById('dcl-val').addEventListener('keydown',e=>{if(e.key==='Enter')dclInsEnd();});
+dclRender();
+</script>
+</body>
+</html>
